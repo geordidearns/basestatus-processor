@@ -21,11 +21,6 @@ const anthropic = new Anthropic({
 
 const parser = new Parser();
 
-// Helper function to convert bytes to MB
-function bytesToMB(bytes) {
-  return (bytes / 1024 / 1024).toFixed(2);
-}
-
 // Helper function to process items in batches
 async function processBatch(serviceId, items, batchSize) {
   const results = [];
@@ -45,6 +40,8 @@ async function processBatch(serviceId, items, batchSize) {
   }
   return { serviceId, results };
 }
+
+let lastSuccessfulCronJob = null;
 
 cron.schedule("* * * * *", async () => {
   console.log("Running feed processing cron job");
@@ -206,8 +203,6 @@ app.post("/summarize-event", async (req, res) => {
 });
 
 app.post("/process-feeds", async (req, res) => {
-  const startMemory = process.memoryUsage();
-
   try {
     const { data: serviceData, error: serviceError } = await supabase
       .from("services")
@@ -230,29 +225,12 @@ app.post("/process-feeds", async (req, res) => {
       processBatch(service.serviceId, service.items, batchSize)
     );
 
-    const allResults = await Promise.all(allProcessingPromises);
-
-    allResults.forEach(({ results, batchAmount }) => {
-      const successfulOps = results.filter((result) => result !== null).length;
-
-      console.log(`${successfulOps}/${batchAmount} operations successful`);
-    });
+    await Promise.all(allProcessingPromises);
 
     res.status(200).send("Successfully parsed RSS feeds and items");
   } catch (error) {
     console.error(error);
     res.status(500).send("Error while processing the feeds");
-  } finally {
-    const endMemory = process.memoryUsage();
-    const memoryDiff = {
-      rss: bytesToMB(endMemory.rss - startMemory.rss),
-      heapTotal: bytesToMB(endMemory.heapTotal - startMemory.heapTotal),
-      heapUsed: bytesToMB(endMemory.heapUsed - startMemory.heapUsed),
-      external: bytesToMB(endMemory.external - startMemory.external),
-    };
-
-    console.log("Memory usage difference (in MB):");
-    console.log(memoryDiff);
   }
 });
 
