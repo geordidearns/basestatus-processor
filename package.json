@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.3",
+    "@logsnag/node": "^1.0.1",
     "@supabase/supabase-js": "^2.44.4",
     "express": "^4.19.2",
     "node-cron": "^3.0.3",

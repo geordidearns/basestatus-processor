@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import Parser from "rss-parser";
 import Anthropic from "@anthropic-ai/sdk";
 import cron from "node-cron";
+import { LogSnag } from "@logsnag/node";
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -17,6 +18,11 @@ const supabase = createClient(
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY ?? "",
+});
+
+const logsnag = new LogSnag({
+  token: process.env.LOGSNAG_API_KEY,
+  project: "basestatus",
 });
 
 const parser = new Parser();
@@ -66,12 +72,23 @@ cron.schedule("* * * * *", async () => {
     );
   } catch (error) {
     console.error("Error in cron job:", error.message);
+    await logsnag.track({
+      channel: "processing-errors",
+      event: "Error in cron job",
+      icon: "🚨",
+      notify: true,
+      tags: {
+        source: "cron-scheduler",
+      },
+    });
   }
 });
 
 app.post("/summarize-event", async (req, res) => {
   const eventId = req.body.eventId;
+
   console.log(`Started summarizing event ${eventId}`);
+
   try {
     const { data: eventData, error: eventError } = await supabase
       .from("service_events")
@@ -79,28 +96,23 @@ app.post("/summarize-event", async (req, res) => {
       .eq("id", eventId);
 
     if (eventError || !eventData || eventData.length === 0) {
+      await logsnag.track({
+        channel: "processing-errors",
+        event: "Failed to fetch service event to summarize",
+        icon: "🚨",
+        notify: true,
+        tags: {
+          source: "summarize-event",
+          eventId: eventId,
+        },
+      });
+
       throw new Error(
         `Failed to fetch service event: ${
           eventError?.message || "Service event not found"
         }`
       );
     }
-
-    /* Removed severity
-        If the description contains the word "major", "major outage" or "downtime" the severity should be set to "major".
-        
-        If the description contains "partial" or "partial outage" the severity should be "partial". 
-        
-        If the description contains the word "degraded" the severity should be set to "degraded". 
-
-        If it contains "minor" the severity should be set to "minor".
-        
-        If the description contains "scheduled" or "maintenance" the severity should be set to "scheduled".
-
-        If the accumulated time is greater than 1440 minutes, and the description does not include "scheduled" or "maintenance", the severity should be set to "major".
-
-        If it cannot be determined, use best judgement - for example, "delayed" in the description would mean "partial" severity.
-    */
 
     const msg = await anthropic.messages.create({
       model: "claude-3-5-sonnet-20240620",
@@ -183,6 +195,17 @@ app.post("/summarize-event", async (req, res) => {
     const result = JSON.parse(msg.content[0].text);
 
     if (!result) {
+      await logsnag.track({
+        channel: "processing-errors",
+        event: "Failed to generate a result from Anthropic API",
+        icon: "🚨",
+        notify: true,
+        tags: {
+          source: "summarize-event",
+          eventId: eventId,
+        },
+      });
+
       throw new Error("Failed to generate message from Anthropic API");
     }
 
@@ -200,6 +223,16 @@ app.post("/summarize-event", async (req, res) => {
     return res.status(200).send(`Successfully summarized event ${eventId}`);
   } catch (error) {
     console.error(error);
+    await logsnag.track({
+      channel: "processing-errors",
+      event: "Failed to summarize a event",
+      icon: "🚨",
+      notify: true,
+      tags: {
+        source: "summarize-event",
+        eventId: eventId,
+      },
+    });
     return res.status(500).send(`Error: Unable to summarize ${eventId}`);
   }
 });
@@ -211,6 +244,16 @@ app.post("/process-feeds", async (req, res) => {
       .select("id, feed_url");
 
     if (serviceError) {
+      await logsnag.track({
+        channel: "processing-errors",
+        event: "Failed to fetch services",
+        icon: "🚨",
+        notify: true,
+        tags: {
+          source: "process-feeds",
+        },
+      });
+
       throw new Error(serviceError.message);
     }
 
@@ -232,6 +275,17 @@ app.post("/process-feeds", async (req, res) => {
     res.status(200).send("Successfully parsed RSS feeds and items");
   } catch (error) {
     console.error(error);
+
+    await logsnag.track({
+      channel: "processing-errors",
+      event: "Failed to process feeds",
+      icon: "🚨",
+      notify: true,
+      tags: {
+        source: "process-feeds",
+      },
+    });
+
     res.status(500).send("Error while processing the feeds");
   }
 });
