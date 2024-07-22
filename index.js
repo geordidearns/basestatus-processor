@@ -62,6 +62,11 @@ cron.schedule("* * * * *", async () => {
 
     const result = await response.text();
     console.log("Cron job completed:", result);
+
+    lastSuccessfulCronJob = new Date();
+    console.log(
+      `Last successful cron job: ${lastSuccessfulCronJob.toISOString()}`
+    );
   } catch (error) {
     console.error("Error in cron job:", error.message);
   }
@@ -228,7 +233,6 @@ app.post("/process-feeds", async (req, res) => {
     const allResults = await Promise.all(allProcessingPromises);
 
     allResults.forEach(({ results, batchAmount }) => {
-      console.log({ results });
       const successfulOps = results.filter((result) => result !== null).length;
 
       console.log(`${successfulOps}/${batchAmount} operations successful`);
