@@ -69,7 +69,6 @@ cron.schedule("* * * * *", async () => {
     );
   } catch (error) {
     console.error("Error in cron job:", error.message);
-
     await logsnag.track({
       channel: "processing-errors",
       event: "Error in cron job",
@@ -270,7 +269,7 @@ app.post("/process-feeds", async (req, res) => {
 
     await Promise.all(allProcessingPromises);
 
-    res.status(200);
+    res.status(200).send("Successfully parsed RSS feeds and items");
   } catch (error) {
     console.error(error);
 
