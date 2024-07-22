@@ -71,6 +71,7 @@ cron.schedule("* * * * *", async () => {
 
 app.post("/summarize-event", async (req, res) => {
   const eventId = req.body.eventId;
+  `Started summarizing event ${eventId}`;
   try {
     const { data: eventData, error: eventError } = await supabase
       .from("service_events")
@@ -195,6 +196,7 @@ app.post("/summarize-event", async (req, res) => {
       throw new Error(`Failed to upsert data: ${upsertError.message}`);
     }
 
+    console.log(`Successfully summarized event ${eventId}`);
     return res.status(200).send(`Successfully summarized event ${eventId}`);
   } catch (error) {
     console.error(error);
