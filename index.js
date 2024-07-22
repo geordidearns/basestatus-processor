@@ -7,6 +7,8 @@ import Anthropic from "@anthropic-ai/sdk";
 const app = express();
 const port = process.env.PORT || 8080;
 
+app.use(express.json());
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
