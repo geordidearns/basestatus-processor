@@ -63,15 +63,13 @@ cron.schedule("* * * * *", async () => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const result = await response.text();
-    console.log("Cron job completed:", result);
-
     lastSuccessfulCronJob = new Date();
     console.log(
       `Last successful cron job: ${lastSuccessfulCronJob.toISOString()}`
     );
   } catch (error) {
     console.error("Error in cron job:", error.message);
+
     await logsnag.track({
       channel: "processing-errors",
       event: "Error in cron job",
@@ -272,7 +270,7 @@ app.post("/process-feeds", async (req, res) => {
 
     await Promise.all(allProcessingPromises);
 
-    res.status(200).send("Successfully parsed RSS feeds and items");
+    res.status(200);
   } catch (error) {
     console.error(error);
 
