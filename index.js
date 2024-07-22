@@ -3,6 +3,7 @@ import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import Parser from "rss-parser";
 import Anthropic from "@anthropic-ai/sdk";
+import cron from "node-cron";
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -44,6 +45,27 @@ async function processBatch(serviceId, items, batchSize) {
   }
   return { serviceId, results };
 }
+
+cron.schedule("* * * * *", async () => {
+  console.log("Running feed processing cron job");
+  try {
+    const response = await fetch(
+      `${process.env.BASESTATUS_PROCESSOR_URL}/process-feeds`,
+      {
+        method: "POST",
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.text();
+    console.log("Cron job completed:", result);
+  } catch (error) {
+    console.error("Error in cron job:", error.message);
+  }
+});
 
 app.post("/summarize-event", async (req, res) => {
   const eventId = req.body.eventId;
