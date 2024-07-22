@@ -155,15 +155,15 @@ app.post("/summarize-event", async (req, res) => {
       ],
     });
 
-    const res = JSON.parse(msg.content[0].text);
+    const result = JSON.parse(msg.content[0].text);
 
-    if (!res) {
+    if (!result) {
       throw new Error("Failed to generate message from Anthropic API");
     }
 
     const { error: upsertError } = await supabase
       .from("service_events")
-      .update({ ...res })
+      .update({ ...result })
       .eq("id", eventId)
       .select();
 
