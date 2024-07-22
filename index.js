@@ -71,7 +71,7 @@ cron.schedule("* * * * *", async () => {
 
 app.post("/summarize-event", async (req, res) => {
   const eventId = req.body.eventId;
-  `Started summarizing event ${eventId}`;
+  console.log(`Started summarizing event ${eventId}`);
   try {
     const { data: eventData, error: eventError } = await supabase
       .from("service_events")
