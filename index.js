@@ -42,6 +42,7 @@ cron.schedule("* * * * *", async () => {
     );
 
     if (!response.ok) {
+      console.log(response.body);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
