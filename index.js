@@ -267,7 +267,6 @@ app.post("/process-feeds", async (req, res) => {
     console.log(`✅ Fetched ${serviceData.length} services`);
 
     const servicePromises = serviceData.map((service) => {
-      console.log(`Parsing feed for service ID: ${service.id}`);
       return parser
         .parseURL(service.feed_url)
         .then((result) => ({ ...result, serviceId: service.id }))
