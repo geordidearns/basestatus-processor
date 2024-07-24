@@ -1,20 +1,26 @@
 export async function processBatch(serviceId, items, batchSize) {
-  const results = [];
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    const batchPromises = batch.map((item) =>
-      supabase.rpc("upsert_service_event", {
-        p_service_id: serviceId,
-        p_guid: item.guid,
-        p_title: item.title,
-        p_description: item.content,
-        p_pub_date: item.isoDate,
-      })
-    );
-    const batchResults = await Promise.all(batchPromises);
-    results.push(...batchResults);
+  try {
+    const results = [];
+    for (let i = 0; i < items.length; i += batchSize) {
+      const batch = items.slice(i, i + batchSize);
+      const batchPromises = batch.map((item) =>
+        supabase.rpc("upsert_service_event", {
+          p_service_id: serviceId,
+          p_guid: item.guid,
+          p_title: item.title,
+          p_description: item.content,
+          p_pub_date: item.isoDate,
+        })
+      );
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
+    }
+
+    return { serviceId, results };
+  } catch (error) {
+    console.error(error);
+    throw new Error(`Error processing batch for service ${serviceId}`);
   }
-  return { serviceId, results };
 }
 
 export async function processEvent(event, supabase) {
