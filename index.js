@@ -42,7 +42,6 @@ cron.schedule("* * * * *", async () => {
     );
 
     if (!response.ok) {
-      console.log(response.json());
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -253,6 +252,7 @@ app.post("/process-events", async (req, res) => {
 });
 
 app.post("/process-feeds", async (req, res) => {
+  let serviceIdProcessing;
   try {
     const { data: serviceData, error: serviceError } = await supabase
       .from("services")
@@ -281,9 +281,10 @@ app.post("/process-feeds", async (req, res) => {
     const serviceResults = await Promise.all(servicePromises);
 
     const batchSize = 10;
-    const allProcessingPromises = serviceResults.map((service) =>
-      processBatch(service.serviceId, service.items, batchSize)
-    );
+    const allProcessingPromises = serviceResults.map((service) => {
+      serviceIdProcessing = service.serviceId;
+      processBatch(service.serviceId, service.items, batchSize);
+    });
 
     await Promise.all(allProcessingPromises);
 
@@ -301,7 +302,9 @@ app.post("/process-feeds", async (req, res) => {
     //   },
     // });
 
-    res.status(500).send("Error while processing the feeds");
+    res
+      .status(500)
+      .send(`Error while processing the feeds ${serviceIdProcessing}`);
   }
 });
 
