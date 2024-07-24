@@ -254,57 +254,69 @@ app.post("/process-events", async (req, res) => {
 app.post("/process-feeds", async (req, res) => {
   let serviceIdProcessing;
   try {
+    console.log("Starting to fetch services");
     const { data: serviceData, error: serviceError } = await supabase
       .from("services")
       .select("id, feed_url");
 
     if (serviceError) {
-      // await logsnag.track({
-      //   channel: "processing-errors",
-      //   event: "Failed to fetch services",
-      //   icon: "🚨",
-      //   notify: true,
-      //   tags: {
-      //     source: "process-feeds",
-      //   },
-      // });
-
+      console.error("Error fetching services:", serviceError);
       throw new Error(serviceError.message);
     }
 
-    const servicePromises = serviceData.map((service) =>
-      parser
+    console.log(`Fetched ${serviceData.length} services`);
+
+    const servicePromises = serviceData.map((service) => {
+      console.log(`Parsing feed for service ID: ${service.id}`);
+      return parser
         .parseURL(service.feed_url)
         .then((result) => ({ ...result, serviceId: service.id }))
-    );
+        .catch((error) => {
+          console.error(
+            `Error parsing feed for service ID ${service.id}:`,
+            error
+          );
+          return { error, serviceId: service.id };
+        });
+    });
 
+    console.log("Waiting for all feeds to be parsed");
     const serviceResults = await Promise.all(servicePromises);
+
+    console.log("All feeds parsed, starting to process items");
 
     const batchSize = 10;
     const allProcessingPromises = serviceResults.map((service) => {
       serviceIdProcessing = service.serviceId;
-      processBatch(service.serviceId, service.items, batchSize);
+      if (service.error) {
+        console.error(
+          `Skipping processing for service ID ${service.serviceId} due to parsing error`
+        );
+        return Promise.resolve();
+      }
+      console.log(`Processing items for service ID: ${service.serviceId}`);
+      return processBatch(service.serviceId, service.items, batchSize).catch(
+        (error) => {
+          console.error(
+            `Error processing batch for service ID ${service.serviceId}:`,
+            error
+          );
+        }
+      );
     });
 
+    console.log("Waiting for all batches to be processed");
     await Promise.all(allProcessingPromises);
 
+    console.log("All feeds processed successfully");
     res.status(200).send("Successfully parsed RSS feeds and items");
   } catch (error) {
-    console.error(error);
-
-    // await logsnag.track({
-    //   channel: "processing-errors",
-    //   event: "Failed to process feeds",
-    //   icon: "🚨",
-    //   notify: true,
-    //   tags: {
-    //     source: "process-feeds",
-    //   },
-    // });
-
+    console.error("Error in main try-catch block:", error);
     res
       .status(500)
-      .send(`Error while processing the feeds ${serviceIdProcessing}`);
+      .send(
+        `Error while processing the feeds. Last service ID processed: ${serviceIdProcessing}`
+      );
   }
 });
 
