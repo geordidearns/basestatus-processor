@@ -1,3 +1,15 @@
+import { createClient } from "@supabase/supabase-js";
+import Anthropic from "@anthropic-ai/sdk";
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY ?? "",
+});
+
 export async function processBatch(serviceId, items, batchSize) {
   try {
     const results = [];
