@@ -6,7 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import cron from "node-cron";
 import { LogSnag } from "@logsnag/node";
 
-import { processEvent, processBatch } from "./utils";
+import { processEvent, processBatch } from "./utils.js";
 
 const app = express();
 const port = process.env.PORT || 8080;
