@@ -51,15 +51,15 @@ cron.schedule("* * * * *", async () => {
     );
   } catch (error) {
     console.error("Error in cron job:", error.message);
-    await logsnag.track({
-      channel: "processing-errors",
-      event: "Error in cron job",
-      icon: "🚨",
-      notify: true,
-      tags: {
-        source: "cron-scheduler",
-      },
-    });
+    // await logsnag.track({
+    //   channel: "processing-errors",
+    //   event: "Error in cron job",
+    //   icon: "🚨",
+    //   notify: true,
+    //   tags: {
+    //     source: "cron-scheduler",
+    //   },
+    // });
   }
 });
 
@@ -75,16 +75,16 @@ app.post("/summarize-event", async (req, res) => {
       .eq("id", eventId);
 
     if (eventError || !eventData || eventData.length === 0) {
-      await logsnag.track({
-        channel: "processing-errors",
-        event: "Failed to fetch service event to summarize",
-        icon: "🚨",
-        notify: true,
-        tags: {
-          source: "summarize-event",
-          eventId: eventId,
-        },
-      });
+      // await logsnag.track({
+      //   channel: "processing-errors",
+      //   event: "Failed to fetch service event to summarize",
+      //   icon: "🚨",
+      //   notify: true,
+      //   tags: {
+      //     source: "summarize-event",
+      //     eventId: eventId,
+      //   },
+      // });
 
       throw new Error(
         `Failed to fetch service event: ${
@@ -174,16 +174,16 @@ app.post("/summarize-event", async (req, res) => {
     const result = JSON.parse(msg.content[0].text);
 
     if (!result) {
-      await logsnag.track({
-        channel: "processing-errors",
-        event: "Failed to generate a result from Anthropic API",
-        icon: "🚨",
-        notify: true,
-        tags: {
-          source: "summarize-event",
-          eventId: eventId,
-        },
-      });
+      // await logsnag.track({
+      //   channel: "processing-errors",
+      //   event: "Failed to generate a result from Anthropic API",
+      //   icon: "🚨",
+      //   notify: true,
+      //   tags: {
+      //     source: "summarize-event",
+      //     eventId: eventId,
+      //   },
+      // });
 
       throw new Error("Failed to generate message from Anthropic API");
     }
@@ -202,16 +202,16 @@ app.post("/summarize-event", async (req, res) => {
     return res.status(200).send(`Successfully summarized event ${eventId}`);
   } catch (error) {
     console.error(error);
-    await logsnag.track({
-      channel: "processing-errors",
-      event: "Failed to summarize a event",
-      icon: "🚨",
-      notify: true,
-      tags: {
-        source: "summarize-event",
-        eventId: eventId,
-      },
-    });
+    // await logsnag.track({
+    //   channel: "processing-errors",
+    //   event: "Failed to summarize a event",
+    //   icon: "🚨",
+    //   notify: true,
+    //   tags: {
+    //     source: "summarize-event",
+    //     eventId: eventId,
+    //   },
+    // });
     return res.status(500).send(`Error: Unable to summarize ${eventId}`);
   }
 });
@@ -238,15 +238,15 @@ app.post("/process-events", async (req, res) => {
     return new Response(`Successfully processed ${events.length} events`);
   } catch (error) {
     console.error(error);
-    await logsnag.track({
-      channel: "processing-events",
-      event: "Failed to process the events",
-      icon: "🚨",
-      notify: true,
-      tags: {
-        source: "process-events",
-      },
-    });
+    // await logsnag.track({
+    //   channel: "processing-events",
+    //   event: "Failed to process the events",
+    //   icon: "🚨",
+    //   notify: true,
+    //   tags: {
+    //     source: "process-events",
+    //   },
+    // });
     res.status(500).send("Error while processing the events");
   }
 });
@@ -258,15 +258,15 @@ app.post("/process-feeds", async (req, res) => {
       .select("id, feed_url");
 
     if (serviceError) {
-      await logsnag.track({
-        channel: "processing-errors",
-        event: "Failed to fetch services",
-        icon: "🚨",
-        notify: true,
-        tags: {
-          source: "process-feeds",
-        },
-      });
+      // await logsnag.track({
+      //   channel: "processing-errors",
+      //   event: "Failed to fetch services",
+      //   icon: "🚨",
+      //   notify: true,
+      //   tags: {
+      //     source: "process-feeds",
+      //   },
+      // });
 
       throw new Error(serviceError.message);
     }
@@ -290,15 +290,15 @@ app.post("/process-feeds", async (req, res) => {
   } catch (error) {
     console.error(error);
 
-    await logsnag.track({
-      channel: "processing-errors",
-      event: "Failed to process feeds",
-      icon: "🚨",
-      notify: true,
-      tags: {
-        source: "process-feeds",
-      },
-    });
+    // await logsnag.track({
+    //   channel: "processing-errors",
+    //   event: "Failed to process feeds",
+    //   icon: "🚨",
+    //   notify: true,
+    //   tags: {
+    //     source: "process-feeds",
+    //   },
+    // });
 
     res.status(500).send("Error while processing the feeds");
   }
