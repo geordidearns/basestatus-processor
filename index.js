@@ -3,7 +3,7 @@ import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import Parser from "rss-parser";
 import Anthropic from "@anthropic-ai/sdk";
-import cron from "node-cron";
+// import cron from "node-cron";
 import { LogSnag } from "@logsnag/node";
 
 import { processEvent, processBatch } from "./utils.js";
@@ -31,37 +31,37 @@ const parser = new Parser();
 
 let lastSuccessfulCronJob = null;
 
-cron.schedule("* * * * *", async () => {
-  console.log("Running feed processing cron job");
-  try {
-    const response = await fetch(
-      `${process.env.BASESTATUS_PROCESSOR_URL}/process-feeds`,
-      {
-        method: "POST",
-      }
-    );
+// cron.schedule("* * * * *", async () => {
+//   console.log("Running feed processing cron job");
+//   try {
+//     const response = await fetch(
+//       `${process.env.BASESTATUS_PROCESSOR_URL}/process-feeds`,
+//       {
+//         method: "POST",
+//       }
+//     );
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+//     if (!response.ok) {
+//       throw new Error(`HTTP error! status: ${response.status}`);
+//     }
 
-    lastSuccessfulCronJob = new Date();
-    console.log(
-      `Last successful cron job: ${lastSuccessfulCronJob.toISOString()}`
-    );
-  } catch (error) {
-    console.error("Error in cron job:", error.message);
-    await logsnag.track({
-      channel: "processing-errors",
-      event: "Error in cron job",
-      icon: "🚨",
-      notify: true,
-      tags: {
-        source: "cron-scheduler",
-      },
-    });
-  }
-});
+//     lastSuccessfulCronJob = new Date();
+//     console.log(
+//       `Last successful cron job: ${lastSuccessfulCronJob.toISOString()}`
+//     );
+//   } catch (error) {
+//     console.error("Error in cron job:", error.message);
+//     await logsnag.track({
+//       channel: "processing-errors",
+//       event: "Error in cron job",
+//       icon: "🚨",
+//       notify: true,
+//       tags: {
+//         source: "cron-scheduler",
+//       },
+//     });
+//   }
+// });
 
 app.post("/summarize-event", async (req, res) => {
   const eventId = req.body.eventId;
