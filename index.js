@@ -108,7 +108,7 @@ app.post("/summarize-event", async (req, res) => {
         
         Convert the weekday to be correct for the UTC timezone also.
 
-        Status should be one of the following: investigating, ongoing, resolved or maintenance. Events that are identified, monitoring or update should have the status ongoing.
+        Status should be one of the following: ongoing, resolved or maintenance. Events that are investigating, identified, monitoring or update should have the status ongoing.
 
         Severity should be determined as accurately as possible based on the description, and given one of the following values:
 
