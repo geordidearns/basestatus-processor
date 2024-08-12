@@ -14,17 +14,17 @@ const port = process.env.PORT || 8080;
 app.use(express.json());
 
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
+	process.env.SUPABASE_URL,
+	process.env.SUPABASE_ANON_KEY
 );
 
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY ?? "",
+	apiKey: process.env.ANTHROPIC_API_KEY ?? "",
 });
 
 const logsnag = new LogSnag({
-  token: process.env.LOGSNAG_API_KEY,
-  project: "basestatus",
+	token: process.env.LOGSNAG_API_KEY,
+	project: "basestatus",
 });
 
 const parser = new Parser();
@@ -64,40 +64,40 @@ let lastSuccessfulCronJob = null;
 // });
 
 app.post("/summarize-event", async (req, res) => {
-  const eventId = req.body.eventId;
+	const eventId = req.body.eventId;
 
-  console.log(`Started summarizing event ${eventId}`);
+	console.log(`Started summarizing event ${eventId}`);
 
-  try {
-    const { data: eventData, error: eventError } = await supabase
-      .from("service_events")
-      .select("*")
-      .eq("id", eventId);
+	try {
+		const { data: eventData, error: eventError } = await supabase
+			.from("service_events")
+			.select("*")
+			.eq("id", eventId);
 
-    if (eventError || !eventData || eventData.length === 0) {
-      await logsnag.track({
-        channel: "processing-errors",
-        event: "Failed to fetch service event to summarize",
-        icon: "🚨",
-        notify: true,
-        tags: {
-          source: "summarize-event",
-          eventId: eventId,
-        },
-      });
+		if (eventError || !eventData || eventData.length === 0) {
+			await logsnag.track({
+				channel: "processing-errors",
+				event: "Failed to fetch service event to summarize",
+				icon: "🚨",
+				notify: true,
+				tags: {
+					source: "summarize-event",
+					eventId: eventId,
+				},
+			});
 
-      throw new Error(
-        `Failed to fetch service event: ${
-          eventError?.message || "Service event not found"
-        }`
-      );
-    }
+			throw new Error(
+				`Failed to fetch service event: ${
+					eventError?.message || "Service event not found"
+				}`
+			);
+		}
 
-    const msg = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
-      max_tokens: 2000,
-      temperature: 0,
-      system: `
+		const msg = await anthropic.messages.create({
+			model: "claude-3-5-sonnet-20240620",
+			max_tokens: 2000,
+			temperature: 0,
+			system: `
         You parse HTML and text and return only valid JSON.
 
         Do not add properties besides status, translated_description, accumulated_time_minutes and severity.
@@ -128,196 +128,198 @@ app.post("/summarize-event", async (req, res) => {
 
         You will calculate the accumulated time between event updates and return the value in minutes extremely accurately. 
 
+        The accumulated_time_minutes should always be an integer, so round any numbers to the nearest whole integer.
+
         Only calculate the accumulated_time_minutes if the event is resolved,or if the event is maintenance and contains the scheduled time range which should be used to accurately calculate the accumulated_time_minutes.
 
         If the event description contains the range of time the event occurred, use that to calculate the accumulated time.
         
         If the event is scheduled maintenance, it is important to only calculate between progress and completed or resolved updates.
       `,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "-",
-            },
-          ],
-        },
-        {
-          role: "assistant",
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                status: "resolved",
-                translated_description:
-                  "<p><small>Jul <var data-var='date'>19</var>, <var data-var='time'>17:57</var> UTC</small><br><strong>Resolved</strong> - This incident has been resolved.</p><p><small>Jul <var data-var='date'>19</var>, <var data-var='time'>14:29</var> UTC</small><br><strong>Investigating</strong> - Records are not being enriched for some customers using Salesforce Enrichment on Platform</p>",
-                accumulated_time_minutes: 5,
-                severity: "minor",
-              }),
-            },
-          ],
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: eventData[0].description,
-            },
-          ],
-        },
-      ],
-    });
+			messages: [
+				{
+					role: "user",
+					content: [
+						{
+							type: "text",
+							text: "-",
+						},
+					],
+				},
+				{
+					role: "assistant",
+					content: [
+						{
+							type: "text",
+							text: JSON.stringify({
+								status: "resolved",
+								translated_description:
+									"<p><small>Jul <var data-var='date'>19</var>, <var data-var='time'>17:57</var> UTC</small><br><strong>Resolved</strong> - This incident has been resolved.</p><p><small>Jul <var data-var='date'>19</var>, <var data-var='time'>14:29</var> UTC</small><br><strong>Investigating</strong> - Records are not being enriched for some customers using Salesforce Enrichment on Platform</p>",
+								accumulated_time_minutes: 5,
+								severity: "minor",
+							}),
+						},
+					],
+				},
+				{
+					role: "user",
+					content: [
+						{
+							type: "text",
+							text: eventData[0].description,
+						},
+					],
+				},
+			],
+		});
 
-    const result = JSON.parse(msg.content[0].text);
+		const result = JSON.parse(msg.content[0].text);
 
-    if (!result) {
-      await logsnag.track({
-        channel: "processing-errors",
-        event: "Failed to generate a result from Anthropic API",
-        icon: "🚨",
-        notify: true,
-        tags: {
-          source: "summarize-event",
-          eventId: eventId,
-        },
-      });
+		if (!result) {
+			await logsnag.track({
+				channel: "processing-errors",
+				event: "Failed to generate a result from Anthropic API",
+				icon: "🚨",
+				notify: true,
+				tags: {
+					source: "summarize-event",
+					eventId: eventId,
+				},
+			});
 
-      throw new Error("Failed to generate message from Anthropic API");
-    }
+			throw new Error("Failed to generate message from Anthropic API");
+		}
 
-    const { error: upsertError } = await supabase
-      .from("service_events")
-      .update({ ...result })
-      .eq("id", eventId)
-      .select();
+		const { error: upsertError } = await supabase
+			.from("service_events")
+			.update({ ...result })
+			.eq("id", eventId)
+			.select();
 
-    if (upsertError) {
-      throw new Error(`Failed to upsert data: ${upsertError.message}`);
-    }
+		if (upsertError) {
+			throw new Error(`Failed to upsert data: ${upsertError.message}`);
+		}
 
-    console.log(`Successfully summarized event ${eventId}`);
-    return res.status(200).send(`Successfully summarized event ${eventId}`);
-  } catch (error) {
-    console.error(error);
-    await logsnag.track({
-      channel: "processing-errors",
-      event: "Failed to summarize a event",
-      icon: "🚨",
-      notify: true,
-      tags: {
-        source: "summarize-event",
-        eventId: eventId,
-      },
-    });
-    return res.status(500).send(`Error: Unable to summarize ${eventId}`);
-  }
+		console.log(`Successfully summarized event ${eventId}`);
+		return res.status(200).send(`Successfully summarized event ${eventId}`);
+	} catch (error) {
+		console.error(error);
+		await logsnag.track({
+			channel: "processing-errors",
+			event: "Failed to summarize a event",
+			icon: "🚨",
+			notify: true,
+			tags: {
+				source: "summarize-event",
+				eventId: eventId,
+			},
+		});
+		return res.status(500).send(`Error: Unable to summarize ${eventId}`);
+	}
 });
 
 app.post("/process-events", async (req, res) => {
-  const BATCH_SIZE = 10;
+	const BATCH_SIZE = 10;
 
-  try {
-    const { data: events, error: fetchError } = await supabase
-      .from("service_events")
-      .select("*")
-      .is("translated_description", null);
+	try {
+		const { data: events, error: fetchError } = await supabase
+			.from("service_events")
+			.select("*")
+			.is("translated_description", null);
 
-    if (fetchError) {
-      throw new Error(`Failed to fetch service events: ${fetchError.message}`);
-    }
+		if (fetchError) {
+			throw new Error(`Failed to fetch service events: ${fetchError.message}`);
+		}
 
-    for (let i = 0; i < events.length; i += BATCH_SIZE) {
-      const batch = events.slice(i, i + BATCH_SIZE);
-      // @ts-ignore
-      await Promise.all(batch.map((event) => processEvent(event, supabase)));
-    }
+		for (let i = 0; i < events.length; i += BATCH_SIZE) {
+			const batch = events.slice(i, i + BATCH_SIZE);
+			// @ts-ignore
+			await Promise.all(batch.map((event) => processEvent(event, supabase)));
+		}
 
-    return new Response(`Successfully processed ${events.length} events`);
-  } catch (error) {
-    console.error(error);
-    await logsnag.track({
-      channel: "processing-events",
-      event: "Failed to process the events",
-      icon: "🚨",
-      notify: true,
-      tags: {
-        source: "process-events",
-      },
-    });
-    res.status(500).send("Error while processing the events");
-  }
+		return new Response(`Successfully processed ${events.length} events`);
+	} catch (error) {
+		console.error(error);
+		await logsnag.track({
+			channel: "processing-events",
+			event: "Failed to process the events",
+			icon: "🚨",
+			notify: true,
+			tags: {
+				source: "process-events",
+			},
+		});
+		res.status(500).send("Error while processing the events");
+	}
 });
 
 app.post("/process-feeds", async (req, res) => {
-  let serviceIdProcessing;
-  try {
-    console.log("🔄 Starting to fetch services");
-    const { data: serviceData, error: serviceError } = await supabase
-      .from("services")
-      .select("id, feed_url");
+	let serviceIdProcessing;
+	try {
+		console.log("🔄 Starting to fetch services");
+		const { data: serviceData, error: serviceError } = await supabase
+			.from("services")
+			.select("id, feed_url");
 
-    if (serviceError) {
-      console.error("🚨 Error fetching services:", serviceError);
-      throw new Error(serviceError.message);
-    }
+		if (serviceError) {
+			console.error("🚨 Error fetching services:", serviceError);
+			throw new Error(serviceError.message);
+		}
 
-    console.log(`✅ Fetched ${serviceData.length} services`);
+		console.log(`✅ Fetched ${serviceData.length} services`);
 
-    const servicePromises = serviceData.map((service) => {
-      return parser
-        .parseURL(service.feed_url)
-        .then((result) => ({ ...result, serviceId: service.id }))
-        .catch((error) => {
-          console.error(
-            `🚨 Error parsing feed for service ID ${service.id}:`,
-            error
-          );
-          return { error, serviceId: service.id };
-        });
-    });
+		const servicePromises = serviceData.map((service) => {
+			return parser
+				.parseURL(service.feed_url)
+				.then((result) => ({ ...result, serviceId: service.id }))
+				.catch((error) => {
+					console.error(
+						`🚨 Error parsing feed for service ID ${service.id}:`,
+						error
+					);
+					return { error, serviceId: service.id };
+				});
+		});
 
-    console.log("⏳ Waiting for all feeds to be parsed");
-    const serviceResults = await Promise.all(servicePromises);
+		console.log("⏳ Waiting for all feeds to be parsed");
+		const serviceResults = await Promise.all(servicePromises);
 
-    console.log("🔄 All feeds parsed, starting to process items");
+		console.log("🔄 All feeds parsed, starting to process items");
 
-    const batchSize = 10;
-    const allProcessingPromises = serviceResults.map((service) => {
-      serviceIdProcessing = service.serviceId;
-      if (service.error) {
-        console.error(
-          `🚨 Skipping processing for service ID ${service.serviceId} due to parsing error`
-        );
-        return Promise.resolve();
-      }
-      return processBatch(service.serviceId, service.items, batchSize).catch(
-        (error) => {
-          console.error(
-            `🚨 Error processing batch for service ID ${service.serviceId}:`,
-            error
-          );
-        }
-      );
-    });
+		const batchSize = 10;
+		const allProcessingPromises = serviceResults.map((service) => {
+			serviceIdProcessing = service.serviceId;
+			if (service.error) {
+				console.error(
+					`🚨 Skipping processing for service ID ${service.serviceId} due to parsing error`
+				);
+				return Promise.resolve();
+			}
+			return processBatch(service.serviceId, service.items, batchSize).catch(
+				(error) => {
+					console.error(
+						`🚨 Error processing batch for service ID ${service.serviceId}:`,
+						error
+					);
+				}
+			);
+		});
 
-    console.log("⏳ Waiting for all batches to be processed");
-    await Promise.all(allProcessingPromises);
+		console.log("⏳ Waiting for all batches to be processed");
+		await Promise.all(allProcessingPromises);
 
-    console.log("✅ All feeds items processed successfully");
-    res.status(200).send("Successfully parsed RSS feeds and items");
-  } catch (error) {
-    console.error("Error in main try-catch block:", error);
-    res
-      .status(500)
-      .send(
-        `🚨 Error while processing the feeds. Last service ID processed: ${serviceIdProcessing}`
-      );
-  }
+		console.log("✅ All feeds items processed successfully");
+		res.status(200).send("Successfully parsed RSS feeds and items");
+	} catch (error) {
+		console.error("Error in main try-catch block:", error);
+		res
+			.status(500)
+			.send(
+				`🚨 Error while processing the feeds. Last service ID processed: ${serviceIdProcessing}`
+			);
+	}
 });
 
 app.listen(port, () => {
-  console.log(`🛜 Basestatus processor is running on port ${port}`);
+	console.log(`🛜 Basestatus processor is running on port ${port}`);
 });
